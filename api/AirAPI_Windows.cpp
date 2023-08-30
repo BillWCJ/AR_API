@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "AirAPI_Windows.h"
+#include "AR_API.h"
 #include "../deps/hidapi-win/include/hidapi.h"
 #include "../deps/Fusion/Fusion/Fusion.h"
 #include <iostream>
@@ -7,6 +7,7 @@
 #include <array>
 #include <cstdint>
 #include <vector>
+#include "XRealAirGlass.h"
 
 // Air USB VID and PID
 #define AIR_VID 0x3318
@@ -57,52 +58,6 @@ typedef struct {
 	int16_t mag[3];
 } air_sample;
 
-
-static int32_t pack32bit_signed(const uint8_t* data) {
-	uint32_t t0v, t1v, t2v, t3v;
-	t0v = data[0];
-	t1v = (data[1] << 8);
-	t2v = (data[2] << 16);
-	t3v = (data[3] << 24);
-
-	uint32_t unsigned_value = t0v | t1v | t2v | t3v;
-	return static_cast<int32_t>(unsigned_value);
-}
-
-static int32_t pack24bit_signed(const uint8_t* data) {
-	uint32_t unsigned_value = (data[0]) | (data[1] << 8) | (data[2] << 16);
-	if ((data[2] & 0x80) != 0) unsigned_value |= (0xFFu << 24);
-	return static_cast<int32_t>(unsigned_value);
-}
-
-static int16_t pack16bit_signed(const uint8_t* data) {
-	uint32_t t0v, t1v;
-	t0v = data[0];
-	t1v = (data[1] << 8);
-
-	uint16_t unsigned_value = t0v | t1v;
-	return static_cast<int16_t>(unsigned_value);
-}
-
-static int32_t pack32bit_signed_swap(const uint8_t* data) {
-	uint32_t t0v, t1v, t2v, t3v;
-	t0v = data[0] << 24;
-	t1v = (data[1] << 16);
-	t2v = (data[2] << 8);
-	t3v = (data[3]);
-
-	uint32_t unsigned_value = t0v | t1v | t2v | t3v;
-	return static_cast<int32_t>(unsigned_value);
-}
-
-
-static int16_t pack16bit_signed_swap(const uint8_t* data) {
-	uint32_t t0v, t1v;
-	t0v = data[0] << 8;
-	t1v = (data[1]);
-	uint16_t unsigned_value = t0v | t1v;
-	return (int16_t)unsigned_value;
-}
 
 //Global variables for get functions
 static float ang_vel[3] = {};
@@ -411,211 +366,211 @@ DWORD WINAPI interface4Handler(LPVOID lpParam) {
 	return 0;
 }
 
-
-int StartConnection()
-{
-
-
-	if (g_isTracking) {
-		std::cout << "Already Tracking" << std::endl;
-		return 1;
-	}
-	else {
-		std::cout << "Opening Device" << std::endl;
-		// Open device
-		device = open_device();
-		device4 = open_device4();
-		if (!device || !device4) {
-			std::cout << "Unable to open device" << std::endl;
-			return 1;
-		}
-
-
-		std::cout << "Sending Payload" << std::endl;
-		// Open the floodgates
-		uint8_t magic_payload[] = { 0x00, 0xaa, 0xc5, 0xd1, 0x21, 0x42, 0x04, 0x00, 0x19, 0x01 };
-
-
-		int res = hid_write(device, magic_payload, sizeof(magic_payload));
-		if (res < 0) {
-			std::cout << "Unable to write to device" << std::endl;
-			return 1;
-		}
-		ThreadParams trackParams = { device };
-		g_isTracking = true;
-		std::cout << "Tracking Starting Thread" << std::endl;
-
-
-		// Start Tracking Thread
-		trackThread = CreateThread(NULL, 0, track, &trackParams, 0, NULL);
-		if (trackThread == NULL) {
-			std::cout << "Failed to create thread" << std::endl;
-			return 1;
-		}
-
-		ThreadParams listenParams = { };
-		g_isListening = true;
-		// Start Interface 4 listener
-		listenThread = CreateThread(NULL, 0, interface4Handler, &listenParams, 0, NULL);
-		if (listenThread == NULL) {
-			std::cout << "Failed to create thread" << std::endl;
-			return 1;
-		}
-		std::cout << "Listenr Thread Started" << std::endl;
-
-		return 1;
-	}
-}
-
-
-int StopConnection()
-{
-	if (g_isTracking) {
-		g_isTracking = false;
-		g_isListening = false;
-		// Wait for the track thread to finish
-		WaitForSingleObject(trackThread, INFINITE);
-		TerminateThread(trackThread, 0);
-		CloseHandle(trackThread);
-
-		// Wait for the listen thread to finish
-		WaitForSingleObject(listenThread, INFINITE);
-		TerminateThread(listenThread, 0);
-		CloseHandle(listenThread);
-		return 1;
-	}
-	else {
-		return -1;
-	}
-}
-
-float* q = new float[4];
-
-float* GetQuaternion()
-{
-	mtx.lock();
-	q[0] = qt.array[0];
-	q[1] = qt.array[1];
-	q[2] = qt.array[2];
-	q[3] = qt.array[3];
-	mtx.unlock();
-	return q;
-}
-
-float* e = new float[3];
-
-float* GetEuler()
-{
-
-	mtx.lock();
-	e[0] = euler.angle.pitch;
-	e[1] = euler.angle.roll;
-	e[2] = euler.angle.yaw;
-	mtx.unlock();
-	return e;
-}
-
-
-int GetBrightness()
-{
-	int curBrightness;
-	it4.lock();
-	curBrightness = brightness;
-	it4.unlock();
-
-	return curBrightness;
-}
-
-int SetFusionGain(float gain)
-{
-	mtx.lock();
-	settings.gain = gain;
-	FusionAhrsSetSettings(&ahrs, &settings);
-	mtx.unlock();
-	return 1;
-}
-
-int SetFusionAccelRejection(float accelReject) {
-	mtx.lock();
-	settings.accelerationRejection = accelReject;
-	FusionAhrsSetSettings(&ahrs, &settings);
-	mtx.unlock();
-	return 1;
-}
-
-int SetFusionMagRejection(float magReject) {
-	mtx.lock();
-	settings.magneticRejection = magReject;
-	FusionAhrsSetSettings(&ahrs, &settings);
-	mtx.unlock();
-	return 1;
-}
-
-int SetFusionRejectTimeout(unsigned int timout) {
-	mtx.lock();
-	settings.rejectionTimeout = timout;
-	FusionAhrsSetSettings(&ahrs, &settings);
-	mtx.unlock();
-	return 1;
-}
-
-int GetFusionState() {
-	//TODO: check if initialized/errors/ect return an int value to represent state
-	// 1 finished and running
-	// 0 initializing
-	// -1 error
-	// error counter?
-
-	return 0;
-}
-
-float* rawGyro = new float[3];
-float* GetRawGyro() {
-
-	mtx.lock();
-	rawGyro = ang_vel;
-	mtx.unlock();
-	return rawGyro;
-}
-
-float* rawAccel = new float[3];
-float* GetRawAccel() {
-
-	mtx.lock();
-	rawAccel = accel_vec;
-	mtx.unlock();
-	return rawAccel;
-}
-
-float* rawMag = new float[3];
-float* GetRawMag() {
-
-	mtx.lock();
-	rawMag = mag_vec;
-	mtx.unlock();
-	return rawMag;
-}
-
-
-uint64_t GetAirTimestamp() {
-	mtx.lock();
-	uint64_t ts = airTimestamp;
-	mtx.unlock();
-	return ts;
-}
-
-int64_t* rejctionCountersOut = new int64_t[2];
-int64_t* GetRejectionCounters() {
-	mtx.lock();
-	rejctionCountersOut = rejectionCounters;
-	mtx.unlock();
-	return rejctionCountersOut;
-}
-
-float* rejectionErrorDegrees = new float[2];
-float* GetRejectionErrorDegrees() {
-	mtx.lock();
-	rejectionErrorDegrees = calculatedError;
-	mtx.unlock();
-	return rejectionErrorDegrees;
-}
+//
+//int StartConnection()
+//{
+//
+//
+//	if (g_isTracking) {
+//		std::cout << "Already Tracking" << std::endl;
+//		return 1;
+//	}
+//	else {
+//		std::cout << "Opening Device" << std::endl;
+//		// Open device
+//		device = open_device();
+//		device4 = open_device4();
+//		if (!device || !device4) {
+//			std::cout << "Unable to open device" << std::endl;
+//			return 1;
+//		}
+//
+//
+//		std::cout << "Sending Payload" << std::endl;
+//		// Open the floodgates
+//		uint8_t magic_payload[] = { 0x00, 0xaa, 0xc5, 0xd1, 0x21, 0x42, 0x04, 0x00, 0x19, 0x01 };
+//
+//
+//		int res = hid_write(device, magic_payload, sizeof(magic_payload));
+//		if (res < 0) {
+//			std::cout << "Unable to write to device" << std::endl;
+//			return 1;
+//		}
+//		ThreadParams trackParams = { device };
+//		g_isTracking = true;
+//		std::cout << "Tracking Starting Thread" << std::endl;
+//
+//
+//		// Start Tracking Thread
+//		trackThread = CreateThread(NULL, 0, track, &trackParams, 0, NULL);
+//		if (trackThread == NULL) {
+//			std::cout << "Failed to create thread" << std::endl;
+//			return 1;
+//		}
+//
+//		ThreadParams listenParams = { };
+//		g_isListening = true;
+//		// Start Interface 4 listener
+//		listenThread = CreateThread(NULL, 0, interface4Handler, &listenParams, 0, NULL);
+//		if (listenThread == NULL) {
+//			std::cout << "Failed to create thread" << std::endl;
+//			return 1;
+//		}
+//		std::cout << "Listenr Thread Started" << std::endl;
+//
+//		return 0;
+//	}
+//}
+//
+//
+//int StopConnection()
+//{
+//	if (g_isTracking) {
+//		g_isTracking = false;
+//		g_isListening = false;
+//		// Wait for the track thread to finish
+//		WaitForSingleObject(trackThread, INFINITE);
+//		TerminateThread(trackThread, 0);
+//		CloseHandle(trackThread);
+//
+//		// Wait for the listen thread to finish
+//		WaitForSingleObject(listenThread, INFINITE);
+//		TerminateThread(listenThread, 0);
+//		CloseHandle(listenThread);
+//		return 0;
+//	}
+//	else {
+//		return -1;
+//	}
+//}
+//
+//float* q = new float[4];
+//
+//float* GetQuaternion()
+//{
+//	mtx.lock();
+//	q[0] = qt.array[0];
+//	q[1] = qt.array[1];
+//	q[2] = qt.array[2];
+//	q[3] = qt.array[3];
+//	mtx.unlock();
+//	return q;
+//}
+//
+//float* e = new float[3];
+//
+//float* GetEuler()
+//{
+//
+//	mtx.lock();
+//	e[0] = euler.angle.pitch;
+//	e[1] = euler.angle.roll;
+//	e[2] = euler.angle.yaw;
+//	mtx.unlock();
+//	return e;
+//}
+//
+//
+//int GetBrightness()
+//{
+//	int curBrightness;
+//	it4.lock();
+//	curBrightness = brightness;
+//	it4.unlock();
+//
+//	return curBrightness;
+//}
+//
+//int SetFusionGain(float gain)
+//{
+//	mtx.lock();
+//	settings.gain = gain;
+//	FusionAhrsSetSettings(&ahrs, &settings);
+//	mtx.unlock();
+//	return 1;
+//}
+//
+//int SetFusionAccelRejection(float accelReject) {
+//	mtx.lock();
+//	settings.accelerationRejection = accelReject;
+//	FusionAhrsSetSettings(&ahrs, &settings);
+//	mtx.unlock();
+//	return 1;
+//}
+//
+//int SetFusionMagRejection(float magReject) {
+//	mtx.lock();
+//	settings.magneticRejection = magReject;
+//	FusionAhrsSetSettings(&ahrs, &settings);
+//	mtx.unlock();
+//	return 1;
+//}
+//
+//int SetFusionRejectTimeout(unsigned int timout) {
+//	mtx.lock();
+//	settings.rejectionTimeout = timout;
+//	FusionAhrsSetSettings(&ahrs, &settings);
+//	mtx.unlock();
+//	return 1;
+//}
+//
+//int GetFusionState() {
+//	//TODO: check if initialized/errors/ect return an int value to represent state
+//	// 1 finished and running
+//	// 0 initializing
+//	// -1 error
+//	// error counter?
+//
+//	return 0;
+//}
+//
+//float* rawGyro = new float[3];
+//float* GetRawGyro() {
+//
+//	mtx.lock();
+//	rawGyro = ang_vel;
+//	mtx.unlock();
+//	return rawGyro;
+//}
+//
+//float* rawAccel = new float[3];
+//float* GetRawAccel() {
+//
+//	mtx.lock();
+//	rawAccel = accel_vec;
+//	mtx.unlock();
+//	return rawAccel;
+//}
+//
+//float* rawMag = new float[3];
+//float* GetRawMag() {
+//
+//	mtx.lock();
+//	rawMag = mag_vec;
+//	mtx.unlock();
+//	return rawMag;
+//}
+//
+//
+//uint64_t GetAirTimestamp() {
+//	mtx.lock();
+//	uint64_t ts = airTimestamp;
+//	mtx.unlock();
+//	return ts;
+//}
+//
+//int64_t* rejctionCountersOut = new int64_t[2];
+//int64_t* GetRejectionCounters() {
+//	mtx.lock();
+//	rejctionCountersOut = rejectionCounters;
+//	mtx.unlock();
+//	return rejctionCountersOut;
+//}
+//
+//float* rejectionErrorDegrees = new float[2];
+//float* GetRejectionErrorDegrees() {
+//	mtx.lock();
+//	rejectionErrorDegrees = calculatedError;
+//	mtx.unlock();
+//	return rejectionErrorDegrees;
+//}

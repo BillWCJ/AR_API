@@ -8,6 +8,12 @@
 #define PCH_H
 #define _CRT_SECURE_NO_WARNINGS 1
 // add headers that you want to pre-compile here
+
+#include <iostream>
+#include <cstdint>
+
+using namespace std;
+
 #include "framework.h"
 
 #endif //PCH_H

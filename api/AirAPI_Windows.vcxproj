@@ -122,7 +122,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\deps\hidapi-win\x64;$(ProjectDir)..\deps\Fusion\Fusion\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\deps\hidapi-win\x64;$(ProjectDir)..\deps\Fusion\Fusion\Release</AdditionalLibraryDirectories>
       <AdditionalDependencies>Fusion.lib;hidapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
@@ -148,20 +148,26 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalDependencies>Fusion.lib;hidapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)\deps\hidapi-win\x64;$(ProjectDir)\deps\Fusion\Fusion\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\deps\hidapi-win\x64;$(ProjectDir)..\deps\Fusion\Fusion\Release</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /y /d  "$(ProjectDir)..\deps\hidapi-win\x64\hidapi.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="AirAPI_Windows.h" />
+    <ClInclude Include="AR_API.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="Glass.h" />
+    <ClInclude Include="GlassManager.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="XRealAirGlass.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AirAPI_Windows.cpp" />
+    <ClCompile Include="AR_API.cpp" />
     <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="XrealAirGlass.cpp" />
+    <ClCompile Include="GlassManager.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
