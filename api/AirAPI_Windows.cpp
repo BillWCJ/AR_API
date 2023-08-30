@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "AirAPI_Windows.h"
-#include "deps/hidapi-win/include/hidapi.h"
-#include "deps/Fusion/Fusion/Fusion.h"
+#include "../deps/hidapi-win/include/hidapi.h"
+#include "../deps/Fusion/Fusion/Fusion.h"
 #include <iostream>
 #include <mutex>
 #include <array>
