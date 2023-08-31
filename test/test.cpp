@@ -15,12 +15,12 @@ int main()
 	cout << "start: " << StartConnection();
 
 	for (int i = 0; i < 100; i++) {
-		float* accel = GetRawAccel();
-		float* gyro = GetRawGyro();
-		float* mag = GetRawMag();
-		cout << "accel: " << accel[0] << ", " << accel[1] << ", " << accel[2] << endl;
-		cout << "gyro: " << gyro[0] << ", " << gyro[1] << ", " << gyro[2] << endl;
-		cout << "mag: " << mag[0] << ", " << mag[1] << ", " << mag[2] << endl;
+		//float* accel = GetRawAccel();
+		//float* gyro = GetRawGyro();
+		//float* mag = GetRawMag();
+		//cout << "accel: " << accel[0] << ", " << accel[1] << ", " << accel[2] << endl;
+		//cout << "gyro: " << gyro[0] << ", " << gyro[1] << ", " << gyro[2] << endl;
+		//cout << "mag: " << mag[0] << ", " << mag[1] << ", " << mag[2] << endl;
 
 		Sleep(1000);
 	}

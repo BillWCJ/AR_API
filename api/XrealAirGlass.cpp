@@ -6,11 +6,10 @@ using namespace std;
 
 XrealAir::XrealAir() {
 	hid_device* d = openHid(vendor_id(), product_id(), 3);
-
-	//c++ convert pointer to shared pointer
+	hid_device* c = openHid(vendor_id(), product_id(), 4);
 	device = shared_ptr<hid_device>(d, [](hid_device* p) { hid_close(p); });
-	// check if device is null pointer
-	if (device.load().get() == nullptr) {
+	control = shared_ptr<hid_device>(c, [](hid_device* p) { hid_close(p); });
+	if (device.load().get() == nullptr || control.load().get() == nullptr) {
 		cout << "Unable to open: " << name() << endl;
 		throw std::runtime_error("Unable to open device");
 	}
@@ -22,6 +21,21 @@ XrealAir::XrealAir() {
 		std::cout << "Unable to write to device" << std::endl;
 		throw std::runtime_error("Unable to write to device");
 	}
+
+	command(0x19, { 0x0 }, 1);
+
+	vector<uint8_t> arr = command(0x14, {}, 0);
+
+	int32_t len = pack32bit_signed(arr.data());
+
+
+	std::vector<uint8_t> config;
+	while (config.size() < static_cast<std::size_t>(len))
+	{
+		std::vector<uint8_t> config_part = command(0x15, {}, 0); // Empty vector passed
+		config.insert(config.end(), config_part.begin(), config_part.end());
+	}
+	std::string config_as_str(config.begin(), config.end());
 }
 
 XrealAir::~XrealAir() {
